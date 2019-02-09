@@ -6,6 +6,7 @@
 package org.rustSlowTests
 
 import com.intellij.openapi.application.runWriteAction
+import com.intellij.openapi.editor.VisualPosition
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -89,14 +90,24 @@ class RsHighlightingPerformanceTest : RsWithToolchainTestBase() {
                 }
             }
 
+        val caretsToAdd = mutableListOf<VisualPosition>()
+
         myFixture.file.descendantsOfType<RsFunction>()
             .asSequence()
             .mapNotNull { it.block?.stmtList?.lastOrNull() }
             .forEach { stmt ->
                 myFixture.editor.caretModel.moveToOffset(stmt.textOffset)
-                myFixture.type("a<caret>;")
+                myFixture.type("aaa;")
+                caretsToAdd += myFixture.editor.caretModel.currentCaret.visualPosition
+                    .let { VisualPosition(it.line, it.column - 1) }
+                // We should commit the document to access `stmt.textOffset` of the next stmt
+                PsiDocumentManager.getInstance(project).commitAllDocuments()
             }
-        PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+        for (vp in caretsToAdd.drop(1)) {
+            myFixture.editor.caretModel.addCaret(vp, false)
+        }
+        myFixture.editor.caretModel.currentCaret.moveToVisualPosition(caretsToAdd.first())
         timings.measure("completion") {
             myFixture.completeBasicAllCarets(null)
         }

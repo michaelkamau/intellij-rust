@@ -5,6 +5,9 @@
 
 package org.rust.ide.inspections
 
+import org.intellij.lang.annotations.Language
+import org.rust.ide.refactoring.implementMembers.withMockTraitMemberChooser
+
 class RsTraitImplementationInspectionTest : RsInspectionsTestBase(RsTraitImplementationInspection()) {
 
     fun `test self in trait not in impl E0186`() = checkErrors("""
@@ -67,16 +70,16 @@ class RsTraitImplementationInspectionTest : RsInspectionsTestBase(RsTraitImpleme
         }
     """)
 
-    fun `test absent method in trait impl E0046`() = checkErrors("""
+    fun `test absent method in trait impl E0046`() = checkByText("""
         trait TError {
             fn bar();
             fn baz();
             fn boo();
         }
-        <error descr="Not all trait items implemented, missing: `bar`, `boo` [E0046]">impl TError for ()</error> {
+        <error descr="Not all trait items implemented, missing: `bar`, `boo` [E0046]">impl TError for ()</error><info> {
             fn baz() {}
-        }
-    """)
+        }</info>
+    """, checkWarn = false, checkInfo = true)
 
     fun `test unknown method in trait impl E0407`() = checkErrors("""
         trait T {
@@ -97,4 +100,44 @@ class RsTraitImplementationInspectionTest : RsInspectionsTestBase(RsTraitImpleme
             type C = ();
         }
     """)
+
+    fun `test implement member fix in impl header`() = checkImplementMembersFix("""
+        trait T { fn f1(); }
+        struct S;
+        <error>impl T /*caret*/for S</error><info> {}</info>
+    """, """
+        trait T { fn f1(); }
+        struct S;
+        impl T for S {
+            fn f1() {
+                unimplemented!()
+            }
+        }
+    """)
+
+    fun `test implement member fix inside impl block`() = checkImplementMembersFix("""
+        trait T { fn f1(); }
+        struct S;
+        <error>impl T for S</error><info> {/*caret*/}</info>
+    """, """
+        trait T { fn f1(); }
+        struct S;
+        impl T for S {
+            fn f1() {
+                unimplemented!()
+            }
+        }
+    """)
+
+    fun `test implement member fix outside of impl block`() = checkFixIsUnavailable("Implement members", """
+        trait T { fn f1(); }
+        struct /*caret*/S;
+        <error>impl T for S</error><info> {}</info>
+    """)
+
+    private fun checkImplementMembersFix(@Language("Rust") before: String, @Language("Rust") after: String) {
+        withMockTraitMemberChooser({ _, all, _ -> all }) {
+            checkFixByText("Implement members", before, after, checkInfo = true)
+        }
+    }
 }

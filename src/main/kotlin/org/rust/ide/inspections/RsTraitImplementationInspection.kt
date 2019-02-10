@@ -15,6 +15,7 @@ import org.rust.lang.core.psi.ext.resolveToTrait
 import org.rust.lang.core.psi.ext.selfParameter
 import org.rust.lang.core.psi.ext.valueParameters
 import org.rust.lang.utils.RsDiagnostic
+import org.rust.lang.utils.Severity
 import org.rust.lang.utils.addToHolder
 
 class RsTraitImplementationInspection : RsLocalInspectionTool() {
@@ -29,8 +30,13 @@ class RsTraitImplementationInspection : RsLocalInspectionTool() {
 
             if (implInfo.missingImplementations.isNotEmpty()) {
                 val missing = implInfo.missingImplementations.mapNotNull { it.name?.let { "`$it`" } }.joinToString(", ")
-                RsDiagnostic.TraitItemsMissingImplError(impl.impl, impl.typeReference ?: impl.impl, missing, impl)
+                val endElement = impl.typeReference ?: impl.impl
+                RsDiagnostic.TraitItemsMissingImplError(impl.impl, endElement, missing, impl, Severity.ERROR)
                     .addToHolder(holder)
+                endElement.nextSibling?.also {
+                    RsDiagnostic.TraitItemsMissingImplError(it, impl.lastChild, missing, impl, Severity.INFO)
+                        .addToHolder(holder)
+                }
             }
 
             for (member in implInfo.nonExistentInTrait) {

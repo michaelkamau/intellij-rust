@@ -11,22 +11,9 @@ import org.intellij.lang.annotations.Language
 import org.rust.ProjectDescriptor
 import org.rust.RsTestBase
 import org.rust.WithStdlibRustProjectDescriptor
-import org.rust.ide.inspections.RsTraitImplementationInspection
 
 class ImplementMembersHandlerTest : RsTestBase() {
-    fun `test available via override shortcut`() = invokeVia {
-        myFixture.performEditorAction("ImplementMethods")
-    }
-
-    fun `test available via quick fix`() {
-        myFixture.enableInspections(RsTraitImplementationInspection())
-        invokeVia {
-            val action = myFixture.findSingleIntention("Implement members")
-            myFixture.launchAction(action)
-        }
-    }
-
-    private fun invokeVia(actionInvoker: () -> Unit) {
+    fun `test available via override shortcut`() {
         checkByText("""
             trait T { fn f1(); }
             struct S;
@@ -41,11 +28,10 @@ class ImplementMembersHandlerTest : RsTestBase() {
             }
         """) {
             withMockTraitMemberChooser({ _, all, _ -> all }) {
-                actionInvoker()
+                myFixture.performEditorAction("ImplementMethods")
             }
         }
     }
-
 
     fun `test not available outside of impl`() {
         InlineFile("""
@@ -57,7 +43,6 @@ class ImplementMembersHandlerTest : RsTestBase() {
             val presentation = myFixture.testAction(ActionManagerEx.getInstanceEx().getAction("ImplementMethods"))
             check(!presentation.isEnabled)
         }
-        check(myFixture.filterAvailableIntentions("Implement members").isEmpty())
     }
 
     fun `test implement methods`() = doTest("""

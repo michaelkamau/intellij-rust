@@ -684,10 +684,11 @@ sealed class RsDiagnostic(
         startElement: PsiElement,
         endElement: PsiElement,
         private val missing: String,
-        private val impl: RsImplItem
+        private val impl: RsImplItem,
+        private val severity: Severity
     ) : RsDiagnostic(startElement, endElement) {
         override fun prepare() = PreparedAnnotation(
-            ERROR,
+            severity,
             E0046,
             errorText(),
             fixes = listOf(ImplementMembersFix(impl))
